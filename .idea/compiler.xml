@@ -8,14 +8,12 @@
         <outputRelativeToContentRoot value="true" />
         <module name="api-gateway" />
         <module name="quiz-service" />
+        <module name="quiz-backend" />
         <module name="user-service" />
         <module name="quiz-console-client" />
         <module name="eureka-server" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="quiz-backend" target="17" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
