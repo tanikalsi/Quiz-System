@@ -1,5 +1,5 @@
 package com.quizsystem.quiz_service.model;
-
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -16,6 +16,7 @@ public class Quiz {
     private String createdBy;   // kis teacher ne banaya
 
     @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Question> questions; // quiz ke andar multiple questions
 
     // Constructors

@@ -1,5 +1,5 @@
 package com.quizsystem.quiz_service.model;
-
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 
 @Entity
@@ -19,6 +19,7 @@ public class Question {
 
     @ManyToOne
     @JoinColumn(name = "quiz_id")
+    @JsonBackReference
     private Quiz quiz;
 
     // Getters and Setters
