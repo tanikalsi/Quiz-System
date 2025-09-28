@@ -24,9 +24,9 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        // Anyone can view quizzes and their questions
-                        .requestMatchers(HttpMethod.GET, "/quiz", "/quiz/**/questions").permitAll()
-                        // Any other request requires a valid token
+                        // Allow anyone to see the list of available quizzes
+                        .requestMatchers(HttpMethod.GET, "/quiz").permitAll()
+                        // Require authentication for all other requests (including viewing questions)
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

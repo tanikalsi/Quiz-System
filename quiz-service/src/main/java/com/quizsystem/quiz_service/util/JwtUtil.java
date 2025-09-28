@@ -11,7 +11,7 @@ import java.util.function.Function;
 @Service
 public class JwtUtil {
 
-    private String SECRET_KEY = "secret"; // This MUST be the same secret as in user-service
+    private String SECRET_KEY = "dGhpcy1pcy1hLW1vcmUtc2VjdXJlLWtleS1mb3ItanNvbi13ZWItdG9rZW5zCg=="; // This MUST be the same secret as in user-service
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
