@@ -51,7 +51,7 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
         System.out.println("2. Create a new User");
         System.out.println("3. Exit");
         System.out.print("Enter your choice: ");
-        int choice = Integer.parseInt(scanner.nextLine());
+        int choice = Integer.parseInt(scanner.nextLine().trim());
 
         switch (choice) {
             case 1 -> login();
@@ -71,7 +71,7 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
         System.out.println("3. List all Quizzes");
         System.out.println("4. Logout");
         System.out.print("Enter your choice: ");
-        int choice = Integer.parseInt(scanner.nextLine());
+        int choice = Integer.parseInt(scanner.nextLine().trim());
 
         switch (choice) {
             case 1 -> createQuiz();
@@ -89,7 +89,7 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
         System.out.println("3. View My Scores");
         System.out.println("4. Logout");
         System.out.print("Enter your choice: ");
-        int choice = Integer.parseInt(scanner.nextLine());
+        int choice = Integer.parseInt(scanner.nextLine().trim());
 
         switch (choice) {
             case 1 -> listQuizzes();
@@ -102,9 +102,9 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
 
     private void login() {
         System.out.print("Enter username: ");
-        String username = scanner.nextLine();
+        String username = scanner.nextLine().trim();
         System.out.print("Enter password: ");
-        String password = scanner.nextLine();
+        String password = scanner.nextLine().trim();
 
         Map<String, String> loginRequest = new HashMap<>();
         loginRequest.put("username", username);
@@ -114,9 +114,6 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
             AuthenticationResponse authResponse = restTemplate.postForObject(USER_SERVICE_URL + "/login", loginRequest, AuthenticationResponse.class);
             if (authResponse != null && authResponse.getJwt() != null) {
                 jwtToken = authResponse.getJwt();
-
-                // ** THIS IS THE KEY CHANGE **
-                // After getting the token, call the new /me endpoint to get full user details
                 HttpEntity<Void> entity = getHttpEntityForGet();
                 ResponseEntity<User> userResponse = restTemplate.exchange(USER_SERVICE_URL + "/me", HttpMethod.GET, entity, User.class);
                 currentUser = userResponse.getBody();
@@ -138,11 +135,11 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
 
     private void createUser() {
         System.out.print("Enter username: ");
-        String username = scanner.nextLine();
+        String username = scanner.nextLine().trim();
         System.out.print("Enter password: ");
-        String password = scanner.nextLine();
+        String password = scanner.nextLine().trim();
         System.out.print("Enter role (TEACHER/STUDENT): ");
-        String role = scanner.nextLine().toUpperCase();
+        String role = scanner.nextLine().toUpperCase().trim();
 
         User user = new User();
         user.setUsername(username);
@@ -176,14 +173,14 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
 
     private void createQuiz() {
         System.out.print("Enter quiz title: ");
-        String title = scanner.nextLine();
+        String title = scanner.nextLine().trim();
         System.out.print("Enter quiz description: ");
-        String description = scanner.nextLine();
+        String description = scanner.nextLine().trim();
 
         Quiz quiz = new Quiz();
         quiz.setTitle(title);
         quiz.setDescription(description);
-        quiz.setUserId(currentUser.getId()); // This now works
+        quiz.setUserId(currentUser.getId());
 
         try {
             HttpEntity<Object> entity = getHttpEntityWithAuthHeader(quiz);
@@ -196,21 +193,21 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
 
     private void addQuestion() {
         System.out.print("Enter Quiz ID to add a question to: ");
-        long quizId = Long.parseLong(scanner.nextLine());
+        long quizId = Long.parseLong(scanner.nextLine().trim());
 
         Question question = new Question();
         System.out.print("Enter question text: ");
-        question.setQuestionText(scanner.nextLine());
+        question.setQuestionText(scanner.nextLine().trim());
         System.out.print("Enter Option 1: ");
-        question.setOption1(scanner.nextLine());
+        question.setOption1(scanner.nextLine().trim());
         System.out.print("Enter Option 2: ");
-        question.setOption2(scanner.nextLine());
+        question.setOption2(scanner.nextLine().trim());
         System.out.print("Enter Option 3: ");
-        question.setOption3(scanner.nextLine());
+        question.setOption3(scanner.nextLine().trim());
         System.out.print("Enter Option 4: ");
-        question.setOption4(scanner.nextLine());
+        question.setOption4(scanner.nextLine().trim());
         System.out.print("Enter Correct Answer (the text of the correct option): ");
-        question.setCorrectAnswer(scanner.nextLine());
+        question.setCorrectAnswer(scanner.nextLine().trim());
 
         String url = QUIZ_SERVICE_URL + "/quiz/" + quizId + "/questions";
         try {
@@ -240,7 +237,7 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
 
     private void takeQuiz() {
         System.out.print("Enter the ID of the quiz you want to take: ");
-        long quizId = Long.parseLong(scanner.nextLine());
+        long quizId = Long.parseLong(scanner.nextLine().trim());
 
         try {
             String questionsUrl = QUIZ_SERVICE_URL + "/quiz/" + quizId + "/questions";
@@ -260,12 +257,12 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
                 System.out.println("  3. " + q.getOption3());
                 System.out.println("  4. " + q.getOption4());
                 System.out.print("Your answer (enter the text of the option): ");
-                String answer = scanner.nextLine();
+                String answer = scanner.nextLine().trim();
                 answers.put(q.getId(), answer);
             }
 
             Map<String, Object> submission = new HashMap<>();
-            submission.put("userId", currentUser.getId()); // This now works
+            submission.put("userId", currentUser.getId());
             submission.put("answers", answers);
 
             String submitUrl = QUIZ_SERVICE_URL + "/quiz/" + quizId + "/submit";
@@ -280,7 +277,7 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
 
     private void viewMyScores() {
         try {
-            String url = QUIZ_SERVICE_URL + "/results/user/" + currentUser.getId(); // This now works
+            String url = QUIZ_SERVICE_URL + "/results/user/" + currentUser.getId();
             ResponseEntity<Result[]> response = restTemplate.exchange(url, HttpMethod.GET, getHttpEntityForGet(), Result[].class);
             Result[] results = response.getBody();
 

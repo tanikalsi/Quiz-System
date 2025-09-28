@@ -14,6 +14,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -37,8 +38,11 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        // These endpoints are public
-                        .requestMatchers("/api/users", "/api/users/login").permitAll()
+                        // Allow POST requests to create users and login
+                        .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/users/login").permitAll()
+                        // Allow GET to test endpoint (optional, for debugging)
+                        .requestMatchers(HttpMethod.GET, "/api/users/test").permitAll()
                         // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )
