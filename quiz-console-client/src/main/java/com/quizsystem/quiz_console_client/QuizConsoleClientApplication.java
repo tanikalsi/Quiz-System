@@ -4,6 +4,10 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -15,9 +19,9 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final Scanner scanner = new Scanner(System.in);
-    private User currentUser = null; // Keep track of the logged-in user
+    private User currentUser = null;
+    private String jwtToken = null;
 
-    // NOTE: Make sure your ports are correct.
     private static final String API_GATEWAY_URL = "http://localhost:8080";
     private static final String USER_SERVICE_URL = API_GATEWAY_URL + "/USER-SERVICE/api/users";
     private static final String QUIZ_SERVICE_URL = API_GATEWAY_URL + "/QUIZ-SERVICE";
@@ -107,18 +111,28 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
         loginRequest.put("password", password);
 
         try {
-            User user = restTemplate.postForObject(USER_SERVICE_URL + "/login", loginRequest, User.class);
-            if (user != null) {
-                currentUser = user;
-                System.out.println("Login successful! Welcome " + currentUser.getUsername());
+            AuthenticationResponse authResponse = restTemplate.postForObject(USER_SERVICE_URL + "/login", loginRequest, AuthenticationResponse.class);
+            if (authResponse != null && authResponse.getJwt() != null) {
+                jwtToken = authResponse.getJwt();
+
+                // ** THIS IS THE KEY CHANGE **
+                // After getting the token, call the new /me endpoint to get full user details
+                HttpEntity<Void> entity = getHttpEntityForGet();
+                ResponseEntity<User> userResponse = restTemplate.exchange(USER_SERVICE_URL + "/me", HttpMethod.GET, entity, User.class);
+                currentUser = userResponse.getBody();
+
+                if (currentUser != null) {
+                    System.out.println("Login successful! Welcome " + currentUser.getUsername());
+                }
             }
         } catch (Exception e) {
-            System.out.println("Error: Invalid username or password.");
+            System.out.println("Error: Invalid username or password. " + e.getMessage());
         }
     }
 
     private void logout() {
         currentUser = null;
+        jwtToken = null;
         System.out.println("You have been logged out successfully.");
     }
 
@@ -143,6 +157,23 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
         }
     }
 
+    private HttpEntity<Object> getHttpEntityWithAuthHeader(Object body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "application/json");
+        if (jwtToken != null) {
+            headers.set("Authorization", "Bearer " + jwtToken);
+        }
+        return new HttpEntity<>(body, headers);
+    }
+
+    private HttpEntity<Void> getHttpEntityForGet() {
+        HttpHeaders headers = new HttpHeaders();
+        if (jwtToken != null) {
+            headers.set("Authorization", "Bearer " + jwtToken);
+        }
+        return new HttpEntity<>(headers);
+    }
+
     private void createQuiz() {
         System.out.print("Enter quiz title: ");
         String title = scanner.nextLine();
@@ -152,10 +183,11 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
         Quiz quiz = new Quiz();
         quiz.setTitle(title);
         quiz.setDescription(description);
-        quiz.setUserId(currentUser.getId()); // Use logged-in teacher's ID
+        quiz.setUserId(currentUser.getId()); // This now works
 
         try {
-            Quiz createdQuiz = restTemplate.postForObject(QUIZ_SERVICE_URL + "/quiz", quiz, Quiz.class);
+            HttpEntity<Object> entity = getHttpEntityWithAuthHeader(quiz);
+            Quiz createdQuiz = restTemplate.postForObject(QUIZ_SERVICE_URL + "/quiz", entity, Quiz.class);
             System.out.println("Quiz created successfully! ID: " + createdQuiz.getId());
         } catch (Exception e) {
             System.out.println("Error creating quiz: " + e.getMessage());
@@ -182,7 +214,8 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
 
         String url = QUIZ_SERVICE_URL + "/quiz/" + quizId + "/questions";
         try {
-            Question createdQuestion = restTemplate.postForObject(url, question, Question.class);
+            HttpEntity<Object> entity = getHttpEntityWithAuthHeader(question);
+            Question createdQuestion = restTemplate.postForObject(url, entity, Question.class);
             System.out.println("Question added successfully! ID: " + createdQuestion.getId());
         } catch (Exception e) {
             System.out.println("Error adding question: " + e.getMessage());
@@ -211,7 +244,8 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
 
         try {
             String questionsUrl = QUIZ_SERVICE_URL + "/quiz/" + quizId + "/questions";
-            Question[] questions = restTemplate.getForObject(questionsUrl, Question[].class);
+            ResponseEntity<Question[]> response = restTemplate.exchange(questionsUrl, HttpMethod.GET, getHttpEntityForGet(), Question[].class);
+            Question[] questions = response.getBody();
 
             if (questions == null || questions.length == 0) {
                 System.out.println("This quiz has no questions or does not exist.");
@@ -231,11 +265,12 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
             }
 
             Map<String, Object> submission = new HashMap<>();
-            submission.put("userId", currentUser.getId());
+            submission.put("userId", currentUser.getId()); // This now works
             submission.put("answers", answers);
 
             String submitUrl = QUIZ_SERVICE_URL + "/quiz/" + quizId + "/submit";
-            Result result = restTemplate.postForObject(submitUrl, submission, Result.class);
+            HttpEntity<Object> submissionEntity = getHttpEntityWithAuthHeader(submission);
+            Result result = restTemplate.postForObject(submitUrl, submissionEntity, Result.class);
             System.out.println("\nQuiz Submitted! Your score: " + result.getScore() + "/" + result.getTotalQuestions());
 
         } catch (Exception e) {
@@ -245,8 +280,9 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
 
     private void viewMyScores() {
         try {
-            String url = QUIZ_SERVICE_URL + "/results/user/" + currentUser.getId();
-            Result[] results = restTemplate.getForObject(url, Result[].class);
+            String url = QUIZ_SERVICE_URL + "/results/user/" + currentUser.getId(); // This now works
+            ResponseEntity<Result[]> response = restTemplate.exchange(url, HttpMethod.GET, getHttpEntityForGet(), Result[].class);
+            Result[] results = response.getBody();
 
             if (results == null || results.length == 0) {
                 System.out.println("You have not attempted any quizzes yet.");
