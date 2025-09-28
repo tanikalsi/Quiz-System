@@ -1,119 +1,186 @@
-package com.quizsystem.console_client;
+package com.quizsystem.quiz_console_client;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.client.RestTemplate;
-import java.util.List;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 @SpringBootApplication
 public class QuizConsoleClientApplication implements CommandLineRunner {
 
     private final RestTemplate restTemplate = new RestTemplate();
+    private final Scanner scanner = new Scanner(System.in);
+    private User currentUser = null; // Keep track of the logged-in user
+
+    // NOTE: Make sure your ports are correct.
+    private static final String API_GATEWAY_URL = "http://localhost:8080";
+    private static final String USER_SERVICE_URL = API_GATEWAY_URL + "/USER-SERVICE/api/users";
+    private static final String QUIZ_SERVICE_URL = API_GATEWAY_URL + "/QUIZ-SERVICE";
 
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(QuizConsoleClientApplication.class);
-        app.setWebApplicationType(WebApplicationType.NONE); // disable embedded web server
+        app.setWebApplicationType(WebApplicationType.NONE);
         app.run(args);
     }
 
     @Override
     public void run(String... args) {
-        Scanner scanner = new Scanner(System.in);
         while (true) {
-            System.out.println("\n--- Quiz Application Menu ---");
-            System.out.println("1. Create a new User");
-            System.out.println("2. Create a new Quiz");
-            System.out.println("3. Add a Question to a Quiz");
-            System.out.println("4. List all Quizzes");
-            System.out.println("5. List all Questions of a Quiz");
-            System.out.println("6. Exit");
-            System.out.print("Enter your choice: ");
-
-            int choice = scanner.nextInt();
-            scanner.nextLine(); // consume newline
-
-            switch (choice) {
-                case 1 -> createUser(scanner);
-                case 2 -> createQuiz(scanner);
-                case 3 -> addQuestion(scanner);
-                case 4 -> listQuizzes();
-                case 5 -> listQuestions(scanner);
-                case 6 -> {
-                    System.out.println("Exiting...");
-                    return;
-                }
-                default -> System.out.println("Invalid choice. Please try again.");
+            if (currentUser == null) {
+                showLoginMenu();
+            } else if ("TEACHER".equalsIgnoreCase(currentUser.getRole())) {
+                showTeacherMenu();
+            } else if ("STUDENT".equalsIgnoreCase(currentUser.getRole())) {
+                showStudentMenu();
             }
         }
     }
 
-    private void createUser(Scanner scanner) {
+    private void showLoginMenu() {
+        System.out.println("\n--- Welcome to the Quiz System ---");
+        System.out.println("1. Login");
+        System.out.println("2. Create a new User");
+        System.out.println("3. Exit");
+        System.out.print("Enter your choice: ");
+        int choice = Integer.parseInt(scanner.nextLine());
+
+        switch (choice) {
+            case 1 -> login();
+            case 2 -> createUser();
+            case 3 -> {
+                System.out.println("Exiting application...");
+                System.exit(0);
+            }
+            default -> System.out.println("Invalid choice. Please try again.");
+        }
+    }
+
+    private void showTeacherMenu() {
+        System.out.println("\n--- Teacher Menu (Logged in as: " + currentUser.getUsername() + ") ---");
+        System.out.println("1. Create a new Quiz");
+        System.out.println("2. Add a Question to a Quiz");
+        System.out.println("3. List all Quizzes");
+        System.out.println("4. Logout");
+        System.out.print("Enter your choice: ");
+        int choice = Integer.parseInt(scanner.nextLine());
+
+        switch (choice) {
+            case 1 -> createQuiz();
+            case 2 -> addQuestion();
+            case 3 -> listQuizzes();
+            case 4 -> logout();
+            default -> System.out.println("Invalid choice.");
+        }
+    }
+
+    private void showStudentMenu() {
+        System.out.println("\n--- Student Menu (Logged in as: " + currentUser.getUsername() + ") ---");
+        System.out.println("1. View all Quizzes");
+        System.out.println("2. Take a Quiz");
+        System.out.println("3. View My Scores");
+        System.out.println("4. Logout");
+        System.out.print("Enter your choice: ");
+        int choice = Integer.parseInt(scanner.nextLine());
+
+        switch (choice) {
+            case 1 -> listQuizzes();
+            case 2 -> takeQuiz();
+            case 3 -> viewMyScores();
+            case 4 -> logout();
+            default -> System.out.println("Invalid choice.");
+        }
+    }
+
+    private void login() {
         System.out.print("Enter username: ");
         String username = scanner.nextLine();
         System.out.print("Enter password: ");
         String password = scanner.nextLine();
-        System.out.print("Enter role: ");
-        String role = scanner.nextLine();
+
+        Map<String, String> loginRequest = new HashMap<>();
+        loginRequest.put("username", username);
+        loginRequest.put("password", password);
+
+        try {
+            User user = restTemplate.postForObject(USER_SERVICE_URL + "/login", loginRequest, User.class);
+            if (user != null) {
+                currentUser = user;
+                System.out.println("Login successful! Welcome " + currentUser.getUsername());
+            }
+        } catch (Exception e) {
+            System.out.println("Error: Invalid username or password.");
+        }
+    }
+
+    private void logout() {
+        currentUser = null;
+        System.out.println("You have been logged out successfully.");
+    }
+
+    private void createUser() {
+        System.out.print("Enter username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
+        System.out.print("Enter role (TEACHER/STUDENT): ");
+        String role = scanner.nextLine().toUpperCase();
 
         User user = new User();
         user.setUsername(username);
         user.setPassword(password);
         user.setRole(role);
 
-        String url = "http://localhost:8080/api/users";
         try {
-            User createdUser = restTemplate.postForObject(url, user, User.class);
-            System.out.println("User created with ID: " + createdUser.getId());
+            User createdUser = restTemplate.postForObject(USER_SERVICE_URL, user, User.class);
+            System.out.println("User created successfully with ID: " + createdUser.getId());
         } catch (Exception e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("Error creating user: " + e.getMessage());
         }
     }
 
-    private void createQuiz(Scanner scanner) {
+    private void createQuiz() {
         System.out.print("Enter quiz title: ");
         String title = scanner.nextLine();
         System.out.print("Enter quiz description: ");
         String description = scanner.nextLine();
-        System.out.print("Enter created by: ");
-        String createdBy = scanner.nextLine();
 
         Quiz quiz = new Quiz();
         quiz.setTitle(title);
         quiz.setDescription(description);
-        quiz.setCreatedBy(createdBy);
+        quiz.setUserId(currentUser.getId()); // Use logged-in teacher's ID
 
-        String url = "http://localhost:8080/quiz";
         try {
-            Quiz createdQuiz = restTemplate.postForObject(url, quiz, Quiz.class);
+            Quiz createdQuiz = restTemplate.postForObject(QUIZ_SERVICE_URL + "/quiz", quiz, Quiz.class);
             System.out.println("Quiz created successfully! ID: " + createdQuiz.getId());
         } catch (Exception e) {
             System.out.println("Error creating quiz: " + e.getMessage());
         }
     }
 
-    private void addQuestion(Scanner scanner) {
-        System.out.print("Enter Quiz ID to add question: ");
-        Long quizId = scanner.nextLong();
-        scanner.nextLine();
+    private void addQuestion() {
+        System.out.print("Enter Quiz ID to add a question to: ");
+        long quizId = Long.parseLong(scanner.nextLine());
 
         Question question = new Question();
         System.out.print("Enter question text: ");
         question.setQuestionText(scanner.nextLine());
-        System.out.print("Option 1: ");
+        System.out.print("Enter Option 1: ");
         question.setOption1(scanner.nextLine());
-        System.out.print("Option 2: ");
+        System.out.print("Enter Option 2: ");
         question.setOption2(scanner.nextLine());
-        System.out.print("Option 3: ");
+        System.out.print("Enter Option 3: ");
         question.setOption3(scanner.nextLine());
-        System.out.print("Option 4: ");
+        System.out.print("Enter Option 4: ");
         question.setOption4(scanner.nextLine());
-        System.out.print("Correct Answer (1-4): ");
+        System.out.print("Enter Correct Answer (the text of the correct option): ");
         question.setCorrectAnswer(scanner.nextLine());
 
-        String url = "http://localhost:8080/quiz/" + quizId + "/questions";
+        String url = QUIZ_SERVICE_URL + "/quiz/" + quizId + "/questions";
         try {
             Question createdQuestion = restTemplate.postForObject(url, question, Question.class);
             System.out.println("Question added successfully! ID: " + createdQuestion.getId());
@@ -123,32 +190,75 @@ public class QuizConsoleClientApplication implements CommandLineRunner {
     }
 
     private void listQuizzes() {
-        String url = "http://localhost:8080/quiz";
         try {
-            Quiz[] quizzes = restTemplate.getForObject(url, Quiz[].class);
-            System.out.println("\n--- Quizzes ---");
-            for (Quiz q : quizzes) {
-                System.out.println("ID: " + q.getId() + ", Title: " + q.getTitle() + ", Created By: " + q.getCreatedBy());
+            Quiz[] quizzes = restTemplate.getForObject(QUIZ_SERVICE_URL + "/quiz", Quiz[].class);
+            System.out.println("\n--- Available Quizzes ---");
+            if (quizzes != null && quizzes.length > 0) {
+                for (Quiz q : quizzes) {
+                    System.out.println("ID: " + q.getId() + ", Title: " + q.getTitle() + ", Description: " + q.getDescription());
+                }
+            } else {
+                System.out.println("No quizzes available.");
             }
         } catch (Exception e) {
             System.out.println("Error fetching quizzes: " + e.getMessage());
         }
     }
 
-    private void listQuestions(Scanner scanner) {
-        System.out.print("Enter Quiz ID to list questions: ");
-        Long quizId = scanner.nextLong();
-        scanner.nextLine();
+    private void takeQuiz() {
+        System.out.print("Enter the ID of the quiz you want to take: ");
+        long quizId = Long.parseLong(scanner.nextLine());
 
-        String url = "http://localhost:8080/quiz/" + quizId + "/questions";
         try {
-            Question[] questions = restTemplate.getForObject(url, Question[].class);
-            System.out.println("\n--- Questions ---");
+            String questionsUrl = QUIZ_SERVICE_URL + "/quiz/" + quizId + "/questions";
+            Question[] questions = restTemplate.getForObject(questionsUrl, Question[].class);
+
+            if (questions == null || questions.length == 0) {
+                System.out.println("This quiz has no questions or does not exist.");
+                return;
+            }
+
+            Map<Long, String> answers = new HashMap<>();
             for (Question q : questions) {
-                System.out.println("ID: " + q.getId() + ", Text: " + q.getQuestionText());
+                System.out.println("\nQ: " + q.getQuestionText());
+                System.out.println("  1. " + q.getOption1());
+                System.out.println("  2. " + q.getOption2());
+                System.out.println("  3. " + q.getOption3());
+                System.out.println("  4. " + q.getOption4());
+                System.out.print("Your answer (enter the text of the option): ");
+                String answer = scanner.nextLine();
+                answers.put(q.getId(), answer);
+            }
+
+            Map<String, Object> submission = new HashMap<>();
+            submission.put("userId", currentUser.getId());
+            submission.put("answers", answers);
+
+            String submitUrl = QUIZ_SERVICE_URL + "/quiz/" + quizId + "/submit";
+            Result result = restTemplate.postForObject(submitUrl, submission, Result.class);
+            System.out.println("\nQuiz Submitted! Your score: " + result.getScore() + "/" + result.getTotalQuestions());
+
+        } catch (Exception e) {
+            System.out.println("Error while taking the quiz: " + e.getMessage());
+        }
+    }
+
+    private void viewMyScores() {
+        try {
+            String url = QUIZ_SERVICE_URL + "/results/user/" + currentUser.getId();
+            Result[] results = restTemplate.getForObject(url, Result[].class);
+
+            if (results == null || results.length == 0) {
+                System.out.println("You have not attempted any quizzes yet.");
+                return;
+            }
+
+            System.out.println("\n--- Your Past Scores ---");
+            for (Result r : results) {
+                System.out.println(r.toString());
             }
         } catch (Exception e) {
-            System.out.println("Error fetching questions: " + e.getMessage());
+            System.out.println("Error fetching your scores: " + e.getMessage());
         }
     }
 }

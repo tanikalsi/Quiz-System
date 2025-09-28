@@ -1,4 +1,4 @@
-package com.quizsystem.console_client;
+package com.quizsystem.quiz_console_client;
 
 public class Question {
     private Long id;

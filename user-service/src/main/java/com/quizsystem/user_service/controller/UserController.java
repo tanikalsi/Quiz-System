@@ -22,9 +22,12 @@ public class UserController {
     public List<User> getAllUsers() {
         return userService.getAllUsers();
     }
-
     @PostMapping
     public User createUser(@RequestBody User user) {
         return userService.createUser(user);
+    }
+    @PostMapping("/login")
+    public User loginUser(@RequestBody LoginRequest loginRequest) {
+        return userService.login(loginRequest.getUsername(), loginRequest.getPassword());
     }
 }

@@ -1,12 +1,12 @@
-package com.quizsystem.console_client;
+package com.quizsystem.quiz_console_client;
 
 public class User {
     private Long id;
     private String username;
-    private String password;
+    private String password; // Only used for sending data, not stored after login
     private String role;
 
-    // getters and setters
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getUsername() { return username; }

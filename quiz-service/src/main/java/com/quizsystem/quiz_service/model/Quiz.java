@@ -13,7 +13,7 @@ public class Quiz {
 
     private String title;      // Quiz ka naam
     private String description; // Short info about quiz
-    private String createdBy;   // kis teacher ne banaya
+    private Long userId;   // kis teacher ne banaya
 
     @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL)
     @JsonManagedReference
@@ -25,7 +25,6 @@ public class Quiz {
     public Quiz(String title, String description, String createdBy) {
         this.title = title;
         this.description = description;
-        this.createdBy = createdBy;
     }
 
     // Getters & Setters
@@ -38,8 +37,8 @@ public class Quiz {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public String getCreatedBy() { return createdBy; }
-    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
 
     public List<Question> getQuestions() { return questions; }
     public void setQuestions(List<Question> questions) { this.questions = questions; }
